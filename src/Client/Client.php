@@ -31,15 +31,26 @@ class Client
 
     private $type;
     private $remote;
+    private $timeout;
     private $listeners = [];
-    private $stream;
     private $options = [];
 
-    public function __construct(int $type, string $remote, ?PsrStreamInterface $stream = null, array $options = [])
+    private $streams = [];
+
+
+    public function __construct(int $type, string $remote, int $timeout = 10, array $options = [])
     {
+        if (
+            ($type & self::TYPE_SOCK) !== self::TYPE_SOCK &&
+            ($type & self::TYPE_TCP) !== self::TYPE_TCP &&
+            ($type & self::TYPE_UDP) !== self::TYPE_UDP
+        ) {
+            throw new \InvalidArgumentException("Invalid server type provided");
+        }
+
         $this->type = $type;
+        $this->timeout = $timeout;
         $this->remote = $remote;
-        $this->stream = $stream;
         $this->listeners = [
             'connect' => function () {},
             'data' => function () {},
@@ -75,17 +86,27 @@ class Client
 
             if (($this->type & self::TYPE_TCP) === self::TYPE_TCP) {
                 $type = "tcp";
-            } elseif (($this->type & self::TYPE_UDP) === self::TYPE_UDP) {
-                $type = 'udp';
-            } elseif (($this->type & self::TYPE_SOCK) === self::TYPE_SOCK) {
-                $type = 'unix';
-            } else {
-
             }
 
-            $socket = stream_socket_client("{$type}://{$this->remote}", $errno, $message, 3, STREAM_CLIENT_CONNECT, $context);
+            if (($this->type & self::TYPE_UDP) === self::TYPE_UDP) {
+                $type = 'udp';
+            }
+
+            if (($this->type & self::TYPE_SOCK) === self::TYPE_SOCK) {
+                $type = 'unix';
+            }
+
+            $socket = stream_socket_client(
+                "{$type}://{$this->remote}",
+                $errno,
+                $message,
+                $this->timeout,
+                STREAM_CLIENT_CONNECT | STREAM_CLIENT_ASYNC_CONNECT,
+                $context
+            );
+
             if (!$socket) {
-                throw new \RuntimeException("Unable to init client: {$message} ($errno)", $errno);
+                throw new \RuntimeException("Unable to connect: {$message} ($errno)", $errno);
             }
 
             if ($secure) {
@@ -112,11 +133,24 @@ class Client
                 $this->trigger('data', $stream);
             });
         })->then(function (StreamInterface $stream) {
-            if ($this->stream instanceof StreamInterface) {
-                attach($this->stream, function (StreamInterface $payload) use ($stream) {
-                    $stream->write($payload->getContents());
+            foreach ($this->streams as $watched) {
+                attach($watched, function (StreamInterface $payload) use ($stream) {
+                    $eof = false;
+                    while (!$eof) {
+                        $chunk = $payload->read(1024);
+                        if ($chunk === '') {
+                            $eof = false;
+                        }
+                    }
+
+                    $stream->write($payload->read(8192));
                 });
             }
         });
+    }
+
+    public function watch(StreamInterface $streamInterface)
+    {
+        $this->streams[] = $streamInterface;
     }
 }
