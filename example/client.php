@@ -4,19 +4,53 @@ use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Stream\StreamInterface;
 use Onion\Framework\Client\Client;
 use function Onion\Framework\EventLoop\loop;
+use function Onion\Framework\EventLoop\detach;
 
 require __DIR__ . '/../vendor/autoload.php';
 
 $request = new Request('GET', 'https://example.com');
 loop();
-$client = new Client(Client::TYPE_TCP | Client::TYPE_SECURE, 'example.com:443');
+$symbols = [];
+$buffer = [];
+stream_set_blocking(STDIN, false);
+$client = new Client(Client::TYPE_TCP, 'localhost:1338');
 $client->on('connect', function (StreamInterface $stream) {
     echo "Connected\n";
-    $req = "GET / HTTP/1.1\n\rHost: www.example.com:443\n\rAccept: */*\n\rAccept-Language: en-us\n\rAccept-Encoding: gzip, deflate\n\rUser-Agent: Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1)\n\r\n\r";
-    $stream->write($req);
+    // $stream->write("Test");
 });
-$client->on('data', function (StreamInterface $stream) {
-    echo "Received: {$stream->read(8192)}\n";
+$client->on('data', function (StreamInterface $__stream) use (&$symbols, &$buffer) {
+    // $pre = [];
+    // $pre = array_keys(get_defined_vars());
+    // extract($symbols);
+    // $code = $__stream->getContents();
+
+    // if (preg_match('~^:(\w+)\s(.*)?$~i', $code, $matches)) {
+    //     switch($matches[1]) {
+    //         case 'save':
+    //             file_put_contents($matches[2], "<?php\n" . implode("\n", $buffer));
+    //             break;
+    //         case 'quit':
+    //         echo "Bye!\n";
+    //             break;
+    //         default:
+    //             echo "Unknown command\n";
+    //             break;
+    //     }
+
+    //     return;
+    // }
+    // $buffer[] = $code;
+    // echo eval($code);
+    // $post = get_defined_vars();
+    // foreach ($pre as $name) {
+    //     if (isset($post[$name])) {
+    //         unset($post[$name]);
+    //     }
+    // }
+
+    // $symbols = $post;
+
+    echo $__stream->getContents();
 });
 $client->on('close', function () {
     echo "Bye!\n";
