@@ -134,6 +134,8 @@ class Client
             });
         })->then(function (StreamInterface $stream) {
             foreach ($this->streams as $watched) {
+                list($watched, $duplex)=$watched;
+
                 attach($watched, function (StreamInterface $payload) use ($stream) {
                     $eof = false;
                     while (!$eof) {
@@ -149,8 +151,8 @@ class Client
         });
     }
 
-    public function watch(StreamInterface $streamInterface)
+    public function watch(StreamInterface $streamInterface, bool $duplex = false)
     {
-        $this->streams[] = $streamInterface;
+        $this->streams[] = [$streamInterface, $duplex];
     }
 }
