@@ -1,9 +1,7 @@
 {
     "require": {
         "onion/event-loop": "dev-master",
-        "psr/http-client": "1.0",
-        "onion/promise": "dev-master",
-        "guzzlehttp/psr7": "^1.5"
+        "onion/promise": "dev-master"
     },
     "require-dev": {
         "roave/security-advisories": "dev-master"
