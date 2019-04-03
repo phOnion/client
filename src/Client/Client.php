@@ -7,15 +7,15 @@ use GuzzleHttp\Stream\Stream;
 use GuzzleHttp\Stream\StreamInterface;
 use function Onion\Framework\Promise\async;
 use Onion\Framework\Promise\Interfaces\PromiseInterface;
+use Onion\Framework\Client\Interfaces\ClientInterface;
 
 /**
  * EVENTS:
  *  - connect
  *  - data
  *  - close
- *
  */
-class Client
+class Client implements ClientInterface
 {
     public const TYPE_TCP = 1;
     public const TYPE_UDP = 2;
@@ -134,25 +134,23 @@ class Client
             });
         })->then(function (StreamInterface $stream) {
             foreach ($this->streams as $watched) {
-                list($watched, $duplex)=$watched;
-
                 attach($watched, function (StreamInterface $payload) use ($stream) {
                     $eof = false;
                     while (!$eof) {
                         $chunk = $payload->read(1024);
+                        $stream->write($chunk);
+
                         if ($chunk === '') {
-                            $eof = false;
+                            $eof = true;
                         }
                     }
-
-                    $stream->write($payload->read(8192));
                 });
             }
         });
     }
 
-    public function watch(StreamInterface $streamInterface, bool $duplex = false)
+    public function proxy(StreamInterface $streamInterface): void
     {
-        $this->streams[] = [$streamInterface, $duplex];
+        $this->streams[] = $streamInterface;
     }
 }
