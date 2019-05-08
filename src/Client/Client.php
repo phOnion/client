@@ -94,7 +94,6 @@ class Client implements ClientInterface
     public function connect(): PromiseInterface
     {
         return async(function () {
-            echo "Start connecting!\n";
             $context = stream_context_create();
 
             foreach ($this->options as $key => $value) {
@@ -142,7 +141,9 @@ class Client implements ClientInterface
                     $channel = new Packet($stream);
                 }
 
-                $this->trigger('connect', $channel);
+                if (!$channel instanceof Packet) {
+                    $this->trigger('connect', $channel);
+                }
 
                 attach($stream, function (StreamInterface $stream) {
                     if ($stream->eof()) {
@@ -152,10 +153,11 @@ class Client implements ClientInterface
                     }
 
                     if (($this->type & static::TYPE_UDP) === static::TYPE_UDP) {
-                        $stream = new Packet($stream);
+                        $channel = new Packet($stream);
                     }
 
-                    $this->trigger('data', $stream);
+                    $this->trigger('data', $channel ?? $stream);
+                    detach($stream);
                 });
             });
         })->then(function (StreamInterface $stream) {
