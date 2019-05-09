@@ -1,7 +1,6 @@
 <?php
 namespace Onion\Framework\Client;
 
-use function Onion\Framework\EventLoop\loop;
 use LibDNS\Decoder\DecoderFactory;
 use LibDNS\Encoder\EncoderFactory;
 use LibDNS\Messages\MessageFactory;
@@ -11,7 +10,6 @@ use LibDNS\Records\Record;
 use LibDNS\Records\ResourceQTypes;
 use Onion\Framework\Promise\Interfaces\PromiseInterface;
 use Onion\Framework\Promise\Promise;
-use function Onion\Framework\EventLoop\coroutine;
 use function Onion\Framework\EventLoop\task;
 use Onion\Framework\Client\Interfaces\ClientInterface;
 
