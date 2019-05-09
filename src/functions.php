@@ -13,6 +13,7 @@ use Onion\Framework\Promise\Interfaces\PromiseInterface;
 use Onion\Framework\Promise\Promise;
 use function Onion\Framework\EventLoop\coroutine;
 use function Onion\Framework\EventLoop\task;
+use Onion\Framework\Client\Interfaces\ClientInterface;
 
 if (!function_exists(__NAMESPACE__ . '\resolve')) {
     function resolve(string $domain, string $type, string $server = '1.1.1.1:53'): PromiseInterface {
@@ -32,22 +33,22 @@ if (!function_exists(__NAMESPACE__ . '\resolve')) {
 
             $client = new Client(Client::TYPE_UDP, $server, 10);
 
-            return new Promise(function ($resolve, $reject) use (&$client) {
-                $client->on('data', function (Packet $packet) use (&$resolve) {
-                    $response = (new DecoderFactory)->create()->decode($packet->read(10 * 1024 * 1024));
+            return $client->send((new EncoderFactory)->create()->encode($request))
+                ->then(function (ClientInterface $client) {
+                    return new Promise(function ($resolve) use (&$client) {
+                        $client->on('data', function (Packet $packet) use (&$resolve) {
+                            $response = (new DecoderFactory)->create()->decode($packet->read(10 * 1024 * 1024));
 
-                    $result = [];
-                    foreach ($response->getAnswerRecords() as $answer) {
-                        /** @var Record $answer */
-                        $result[] = (string) $answer->getData();
-                    }
+                            $result = [];
+                            foreach ($response->getAnswerRecords() as $answer) {
+                                /** @var Record $answer */
+                                $result[] = (string) $answer->getData();
+                            }
 
-                    $resolve($result);
+                            $resolve($result);
+                        });
+                    });
                 });
-
-            });
-
-            $client->send((new EncoderFactory)->create()->encode($request));
         });
     }
 }
