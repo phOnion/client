@@ -124,7 +124,7 @@ class Client implements ClientInterface
                 $errno,
                 $message,
                 $this->timeout,
-                STREAM_CLIENT_CONNECT | STREAM_CLIENT_ASYNC_CONNECT | STREAM_CLIENT_PERSISTENT,
+                STREAM_CLIENT_CONNECT | STREAM_CLIENT_ASYNC_CONNECT,
                 $context
             );
             stream_set_blocking($socket, false);
