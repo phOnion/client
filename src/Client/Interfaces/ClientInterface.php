@@ -9,4 +9,5 @@ interface ClientInterface
     public function on(string $event, callable $callback): void;
     public function proxy(StreamInterface $stream): void;
     public function connect(): PromiseInterface;
+    public function send(string $data): PromiseInterface;
 }

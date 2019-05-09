@@ -188,7 +188,7 @@ class Client implements ClientInterface
         $this->streams[] = $streamInterface;
     }
 
-    public function send(string $data)
+    public function send(string $data): PromiseInterface
     {
         return $this->connect()->then(function ($channel) use ($data) {
             if ($channel instanceof Packet) {
