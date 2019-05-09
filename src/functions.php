@@ -12,24 +12,25 @@ use Onion\Framework\Promise\Interfaces\PromiseInterface;
 use Onion\Framework\Promise\Promise;
 use function Onion\Framework\EventLoop\task;
 use Onion\Framework\Client\Interfaces\ClientInterface;
+use LibDNS\Records\Question;
 
 if (!function_exists(__NAMESPACE__ . '\resolve')) {
-    function resolve(string $domain, string $type, string $server = '1.1.1.1:53'): PromiseInterface {
+    function resolve(string $domain, string $type, int $timeout = 3, string $server = '1.1.1.1:53'): PromiseInterface {
         $type = constant(ResourceQTypes::class . '::' . strtoupper($type));
 
         if ($type === null) {
             throw new \InvalidArgumentException("Unknown record type '{$type}'");
         }
 
-        return task(function () use ($domain, $type, $server) {
-            $question = (new QuestionFactory)->create($type);
-            $question->setName($domain);
+        $question = (new QuestionFactory)->create($type);
+        $question->setName($domain);
 
+        $client = new Client(Client::TYPE_UDP, $server, $timeout);
+
+        return task(function (Question $question, ClientInterface $client) {
             $request = (new MessageFactory)->create(MessageTypes::QUERY);
             $request->getQuestionRecords()->add($question);
             $request->isRecursionDesired(true);
-
-            $client = new Client(Client::TYPE_UDP, $server, 10);
 
             return $client->send((new EncoderFactory)->create()->encode($request))
                 ->then(function (ClientInterface $client) {
@@ -47,6 +48,6 @@ if (!function_exists(__NAMESPACE__ . '\resolve')) {
                         });
                     });
                 });
-        });
+        }, null, $question, $client);
     }
 }
