@@ -198,6 +198,8 @@ class Client implements ClientInterface
             if ($channel instanceof StreamInterface) {
                 $channel->write($data);
             }
+        })->then(function () {
+            return $this;
         });
     }
 }
