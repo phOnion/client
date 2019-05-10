@@ -8,7 +8,7 @@ require_once __DIR__ . '/../vendor/autoload.php';
 ini_set('display_errors', 1);
 error_reporting(E_ALL ^ E_WARNING);
 
-resolve('example.com', 'NS', '8.8.8.8:53')
+resolve('example.com', 'NS', 1, '8.8.8.8:53')
     ->then('var_dump')
     ->otherwise(function ($ex) {
         echo "{$ex->getMessage()}\n";
