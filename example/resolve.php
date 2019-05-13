@@ -1,7 +1,6 @@
 <?php
 use function Onion\Framework\Client\resolve;
 use function Onion\Framework\EventLoop\loop;
-use function Onion\Framework\Promise\async;
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
