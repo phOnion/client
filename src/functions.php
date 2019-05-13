@@ -10,9 +10,9 @@ use LibDNS\Records\Record;
 use LibDNS\Records\ResourceQTypes;
 use Onion\Framework\Promise\Interfaces\PromiseInterface;
 use Onion\Framework\Promise\Promise;
-use function Onion\Framework\EventLoop\task;
 use Onion\Framework\Client\Interfaces\ClientInterface;
 use LibDNS\Records\Question;
+use function Onion\Framework\Promise\promise;
 
 if (!function_exists(__NAMESPACE__ . '\resolve')) {
     function resolve(string $domain, string $type, int $timeout = 3, string $server = '1.1.1.1:53'): PromiseInterface {
@@ -27,7 +27,7 @@ if (!function_exists(__NAMESPACE__ . '\resolve')) {
 
         $client = new Client(Client::TYPE_UDP, $server, $timeout);
 
-        return task(function (Question $question, ClientInterface $client) {
+        return promise(function (Question $question, ClientInterface $client) {
             $request = (new MessageFactory)->create(MessageTypes::QUERY);
             $request->getQuestionRecords()->add($question);
             $request->isRecursionDesired(true);
