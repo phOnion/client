@@ -43,6 +43,8 @@ class Client implements ClientInterface
     private $listeners = [];
     private $options = [];
 
+    /** @var StreamInterface $connection */
+    private $connection;
     private $streams = [];
 
 
@@ -94,6 +96,10 @@ class Client implements ClientInterface
     public function connect(): PromiseInterface
     {
         return async(function () {
+            if ($this->connection !== null) {
+                return $this->connection;
+            }
+
             $context = stream_context_create();
 
             foreach ($this->options as $key => $value) {
@@ -133,7 +139,13 @@ class Client implements ClientInterface
                 throw new \RuntimeException("Unable to connect: {$message} ($errno)", $errno);
             }
 
-            return new Stream($socket);
+            return ($this->connection = new Stream($socket));
+        }, null, function () {
+            if (is_resource($this->connection)) {
+                detach($this->connection);
+                $this->connection->close();
+                $this->connection = null;
+            }
         })->then(function (StreamInterface $stream) {
             attach($stream, function (StreamInterface $stream) {
                 $channel = $stream;
