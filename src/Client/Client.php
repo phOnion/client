@@ -8,6 +8,7 @@ use GuzzleHttp\Stream\Stream;
 use GuzzleHttp\Stream\StreamInterface;
 use Onion\Framework\Client\Interfaces\ClientInterface;
 use Onion\Framework\Promise\Interfaces\PromiseInterface;
+use function Onion\Framework\Promise\promise;
 
 /**
  * EVENTS:
@@ -203,15 +204,15 @@ class Client implements ClientInterface
     public function send(string $data): PromiseInterface
     {
         return $this->connect()->then(function ($channel) use ($data) {
-            if ($channel instanceof Packet) {
-                $channel->send($data, $channel->getAddress(true));
-            }
+            return promise(function ($channel, string $data) {
+                if ($channel instanceof Packet) {
+                    return $channel->send($data, $channel->getAddress(true));
+                }
 
-            if ($channel instanceof StreamInterface) {
-                $channel->write($data);
-            }
-        })->then(function () {
-            return $this;
+                if ($channel instanceof StreamInterface) {
+                    return $channel->write($data);
+                }
+            }, null, $channel, $data);
         });
     }
 }
