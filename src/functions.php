@@ -21,37 +21,42 @@ if (!function_exists(__NAMESPACE__ . '\resolve')) {
     {
         return new Signal(function (TaskInterface $task, SchedulerInterface $scheduler) use ($domain, $type, $timeout, $server) {
             $scheduler->add(new Coroutine(function () use ($task, $scheduler, $domain, $type, $timeout, $server) {
-                $adapter = new UdpAdapter();
+                try {
+                    $adapter = new UdpAdapter();
 
-                $client = new Client($adapter);
+                    $client = new Client($adapter);
 
-                $type = constant(ResourceQTypes::class . '::' . strtoupper($type));
+                    $type = constant(ResourceQTypes::class . '::' . strtoupper($type));
 
-                if ($type === null) {
-                    throw new \InvalidArgumentException("Unknown record type '{$type}'");
-                }
-                $question = (new QuestionFactory)->create($type);
-                $question->setName($domain);
-
-                $request = (new MessageFactory)->create(MessageTypes::QUERY);
-                $request->getQuestionRecords()->add($question);
-                $request->isRecursionDesired(true);
-                [$address, $port, ] = explode(':', $server . ':53');
-
-                $promise = (yield $client->send((new EncoderFactory)->create()->encode($request), $address, $port, $timeout));
-                $promise->then(function (string $data) {
-                    $response = (new DecoderFactory)->create()->decode($data);
-
-                    $result = [];
-                    foreach ($response->getAnswerRecords() as $answer) {
-                        /** @var Record $answer */
-                        $result[] = (string) $answer->getData();
+                    if ($type === null) {
+                        throw new \InvalidArgumentException("Unknown record type '{$type}'");
                     }
+                    $question = (new QuestionFactory)->create($type);
+                    $question->setName($domain);
 
-                    return $result;
-                });
+                    $request = (new MessageFactory)->create(MessageTypes::QUERY);
+                    $request->getQuestionRecords()->add($question);
+                    $request->isRecursionDesired(true);
+                    [$address, $port, ] = explode(':', $server . ':53');
 
-                $task->send($promise);
+                    $promise = (yield $client->send((new EncoderFactory)->create()->encode($request), $address, $port, $timeout));
+                    $promise->then(function (string $data) {
+                        $response = (new DecoderFactory)->create()->decode($data);
+
+                        $result = [];
+                        foreach ($response->getAnswerRecords() as $answer) {
+                            /** @var Record $answer */
+                            $result[] = (string) $answer->getData();
+                        }
+
+                        return $result;
+                    });
+
+                    $task->send(yield $promise->await());
+                } catch (\Throwable $ex) {
+                    $task->throw($ex);
+                }
+
                 $scheduler->schedule($task);
             }));
         });
@@ -64,12 +69,12 @@ if (!function_exists(__NAMESPACE__ . '\gethostbyname')) {
     {
         return new Signal(function (TaskInterface $task, SchedulerInterface $scheduler) use ($domain, $timeout, $server) {
             $scheduler->add(new Coroutine(function () use ($task, $scheduler, $domain, $timeout, $server) {
-                $result = (yield (yield resolve($domain, 'a', $timeout, $server))->then('current')->await());
-                if (!$result) {
-                    $result = (yield (yield resolve($domain, 'aaaa', $timeout, $server))->then('current')->await());
+                $record = (yield resolve($domain, 'a', $timeout, $server));
+                if (!$record) {
+                    $record = (yield resolve($domain, 'aaaa', $timeout, $server));
                 }
 
-                $task->send($result);
+                $task->send(current($record));
                 $scheduler->schedule($task);
             }));
         });
