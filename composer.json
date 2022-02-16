@@ -1,8 +1,9 @@
 {
+  "name": "onion/client",
   "require": {
+    "daverandom/libdns": "^2.0",
     "onion/interfaces": "@dev",
     "onion/event-loop": "@dev",
-    "daverandom/libdns": "^2.0",
     "onion/promise": "@dev"
   },
   "require-dev": {
