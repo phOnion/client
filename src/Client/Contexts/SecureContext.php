@@ -1,10 +1,15 @@
 <?php
+
+declare(strict_types=1);
+
 namespace Onion\Framework\Client\Contexts;
+
 use Onion\Framework\Client\Interfaces\ContextInterface;
+
 class SecureContext implements ContextInterface
 {
     private $options = [
-        'disable_compression' => true,
+        // 'disable_compression' => true,
         'ciphers' => 'HIGH:!SSLv2:!SSLv3',
     ];
 
@@ -99,7 +104,7 @@ class SecureContext implements ContextInterface
     public function getContextArray(): array
     {
         return [
-            'ssl' => $this->options,
+            'ssl' => $this->getContextOptions(),
         ];
     }
     public function getContextOptions(): array

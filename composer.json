@@ -1,18 +1,27 @@
 {
-    "require": {
-        "onion/event-loop": "dev-master",
-        "onion/promise": "dev-master"
+  "require": {
+    "onion/interfaces": "@dev",
+    "onion/event-loop": "@dev",
+    "daverandom/libdns": "^2.0",
+    "onion/promise": "@dev"
+  },
+  "require-dev": {
+    "roave/security-advisories": "dev-master",
+    "guzzlehttp/psr7": "^2.1",
+    "onion/http": "@dev",
+    "onion/server": "@dev",
+    "squizlabs/php_codesniffer": "^3.6"
+  },
+  "autoload": {
+    "psr-4": {
+      "Onion\\Framework\\": "src/"
     },
-    "require-dev": {
-        "roave/security-advisories": "dev-master",
-        "daverandom/libdns": "^2.0"
-    },
-    "autoload": {
-        "psr-4": {
-            "Onion\\Framework\\": "src/"
-        },
-        "files": [
-            "src/functions.php"
-        ]
-    }
+    "files": [
+      "src/functions.php"
+    ]
+  },
+  "scripts": {
+    "fix": "phpcbf --standard=psr12 src/",
+    "lint": "phpcs --standard=psr12 src/"
+  }
 }
