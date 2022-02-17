@@ -3,8 +3,7 @@
   "require": {
     "daverandom/libdns": "^2.0",
     "onion/interfaces": "@dev",
-    "onion/event-loop": "@dev",
-    "onion/promise": "@dev"
+    "onion/event-loop": "@dev"
   },
   "require-dev": {
     "roave/security-advisories": "dev-master",
