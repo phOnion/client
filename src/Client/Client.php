@@ -24,7 +24,7 @@ class Client implements ClientInterface
             $code,
             $error,
             $timeout,
-            STREAM_CLIENT_CONNECT | STREAM_CLIENT_ASYNC_CONNECT,
+            STREAM_CLIENT_CONNECT,
             stream_context_create(
                 array_merge(
                     ...array_map(
