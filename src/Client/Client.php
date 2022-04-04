@@ -19,20 +19,20 @@ class Client implements ClientInterface
         ?float $timeout = null,
         array $contexts = [],
     ): Descriptor {
+        $contexts = array_merge(
+            ...array_map(
+                fn (ContextInterface $ctx) => $ctx->getContextArray(),
+                $contexts
+            )
+        );
+
         $client = stream_socket_client(
             $address,
             $code,
             $error,
             $timeout,
             STREAM_CLIENT_CONNECT,
-            stream_context_create(
-                array_merge(
-                    ...array_map(
-                        fn (ContextInterface $ctx) => $ctx->getContextArray(),
-                        $contexts
-                    )
-                )
-            ),
+            stream_context_create($contexts),
         );
 
         if (!$client) {
