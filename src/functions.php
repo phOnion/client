@@ -12,6 +12,24 @@ use LibDNS\Records\QuestionFactory;
 use LibDNS\Records\Resource;
 use LibDNS\Records\ResourceQTypes;
 
+static $dns = null;
+if (!function_exists(__NAMESPACE__ . '\set_default_dns_server')) {
+    function set_default_dns_server(string $address): void
+    {
+        static $dns;
+        $dns = $address;
+    }
+}
+
+if (!function_exists(__NAMESPACE__ . '\get_default_dns_server')) {
+    function get_default_dns_server(): ?string
+    {
+        static $dns;
+
+        return $dns;
+    }
+}
+
 if (!function_exists(__NAMESPACE__ . '\resolve')) {
     function resolve(string $domain, string $type, int $timeout = 3, string $server = null)
     {
@@ -28,34 +46,8 @@ if (!function_exists(__NAMESPACE__ . '\resolve')) {
         $request->isRecursionDesired(true);
         $request->isAuthoritative(true);
 
-        if ($server === null) {
-            static $servers = [];
-
-            if (count($servers) === 0) {
-                if (DIRECTORY_SEPARATOR === '\\') {
-                    preg_match_all(
-                        '/(?<=[{;,"])([\da-f.:]{4,})(?=[};,"])/i',
-                        shell_exec('wmic NICCONFIG get "DNSServerSearchOrder" /format:CSV'),
-                        $matches
-                    );
-
-                    $servers = $matches[0];
-                } else {
-                    preg_match_all('/^nameserver\s+(\S+)\s*$/m', file_get_contents('/etc/resolv.conf'), $matches);
-
-                    foreach ($matches[1] as $ip) {
-                        if (strpos($ip, ':') !== false || strpos($ip, '%') !== false) {
-                            continue;
-                        }
-
-                        $servers[] = $ip;
-                    }
-                }
-            }
-
-            $server = current($servers);
-        }
-
+        $server ??= get_default_dns_server();
+        $server ??= '8.8.8.8';
 
         [$address, $port,] = explode(':', $server . ':53');
 
