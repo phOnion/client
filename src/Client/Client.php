@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace Onion\Framework\Client;
 
+use Closure;
+use Onion\Framework\Client\Contexts\AggregateContext;
 use Onion\Framework\Client\Interfaces\ClientInterface;
 use Onion\Framework\Client\Interfaces\ContextInterface;
-use Onion\Framework\Loop\Descriptor;
-use Onion\Framework\Loop\Interfaces\ResourceInterface;
-use Onion\Framework\Loop\Types\Operation;
+use Onion\Framework\Loop\Interfaces\{ResourceInterface, TaskInterface, SchedulerInterface};
+use Onion\Framework\Loop\Types\{NetworkProtocol, NetworkAddress};
 
-use function Onion\Framework\Loop\tick;
+use function Onion\Framework\Loop\{signal,write};
 
 class Client implements ClientInterface
 {
@@ -23,64 +24,34 @@ class Client implements ClientInterface
 
     public static function connect(string $address, ?float $timeout, ContextInterface ...$context): ResourceInterface
     {
-        /** @var array $contexts */
-        $contexts = array_merge(
-            ...array_map(
-                fn (ContextInterface $ctx) => $ctx->getContextArray(),
-                $context
-            )
-        );
-
-        $client = stream_socket_client(
-            $address,
-            $code,
-            $error,
-            $timeout,
-            STREAM_CLIENT_CONNECT,
-            stream_context_create($contexts),
-        );
-
-        if (!$client) {
-            throw new \RuntimeException($error, $code);
-        }
-
-        $connection = new Descriptor($client);
-        $connection->unblock();
-
-        if (isset($contexts['ssl'])) {
-            do {
-                $connection->wait(Operation::WRITE);
-                $crypto = stream_socket_enable_crypto(
-                    $connection->getResource(),
-                    true,
-                    static::$cryptoClientProtocol ?? static::DEFAULT_STREAM_CRYPTO,
-                    $connection->getResource(),
-                );
-                tick();
-            } while ($crypto === 0);
-        }
-
-        return $connection;
+        return signal(function (Closure $resume, TaskInterface $task, SchedulerInterface $scheduler) use ($address, $context) {
+            $parts = parse_url($address);
+            $scheduler->connect(
+                $parts['host'],
+                $parts['port'] ?? 0,
+                fn (ResourceInterface $resource) => $resume($resource),
+                match ($parts['scheme']) {
+                    'tcp', 'unix' => NetworkProtocol::TCP,
+                    'udp', 'udg' => NetworkProtocol::UDP,
+                },
+                new AggregateContext($context),
+                match ($parts['scheme']) {
+                    'tcp', 'udp' => NetworkAddress::NETWORK,
+                    'unix', 'udg' => NetworkAddress::LOCAL,
+                }
+            );
+        });
     }
+
     public static function send(
         string $address,
         string $data,
         ?float $timeout = null,
         array $contexts = [],
-    ): Descriptor {
+    ): ResourceInterface {
         $connection = static::connect($address, $timeout, ...$contexts);
 
-        $connection->wait(Operation::WRITE);
-        $chunks = str_split($data, 1024);
-        foreach ($chunks as $chunk) {
-            $offset = 0;
-            while ($offset !== strlen($chunk)) {
-                $offset += $connection->write(substr($chunk, $offset));
-                tick();
-            }
-        }
-
-        $connection->wait();
+        write($connection, $data);
 
         return $connection;
     }
