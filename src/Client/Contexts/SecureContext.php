@@ -8,10 +8,7 @@ use Onion\Framework\Client\Interfaces\ContextInterface;
 
 class SecureContext implements ContextInterface
 {
-    private $options = [
-        // 'disable_compression' => true,
-        'ciphers' => 'HIGH:!SSLv2:!SSLv3',
-    ];
+    private $options = [];
 
     public function setPeerName(string $name)
     {
