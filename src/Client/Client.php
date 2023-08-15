@@ -15,16 +15,16 @@ use function Onion\Framework\Loop\{signal,write};
 
 class Client implements ClientInterface
 {
-    private static $cryptoClientProtocol;
-
-    public static function setClientCryptoProtocol(int $protocol): void
+    public static function connect(
+        string $address,
+        ContextInterface ...$context,
+    ): ResourceInterface
     {
-        static::$cryptoClientProtocol = $protocol;
-    }
-
-    public static function connect(string $address, ?float $timeout, ContextInterface ...$context): ResourceInterface
-    {
-        return signal(function (Closure $resume, TaskInterface $task, SchedulerInterface $scheduler) use ($address, $context) {
+        return signal(function (
+            Closure $resume,
+            TaskInterface $task,
+            SchedulerInterface $scheduler
+        ) use ($address, $context) {
             $parts = parse_url($address);
             $scheduler->connect(
                 $parts['host'],
@@ -41,18 +41,5 @@ class Client implements ClientInterface
                 }
             );
         });
-    }
-
-    public static function send(
-        string $address,
-        string $data,
-        ?float $timeout = null,
-        array $contexts = [],
-    ): ResourceInterface {
-        $connection = static::connect($address, $timeout, ...$contexts);
-
-        write($connection, $data);
-
-        return $connection;
     }
 }
