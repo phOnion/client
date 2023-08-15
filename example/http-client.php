@@ -5,9 +5,12 @@ use Onion\Framework\Client\{Client, Contexts\SecureContext};
 use Psr\Http\Message\{RequestInterface, ResponseInterface};
 
 use function Onion\Framework\Client\gethostbyname;
-use function Onion\Framework\Loop\{coroutine, scheduler, tick};
+use function Onion\Framework\Loop\{coroutine, scheduler, suspend, read, write};
 
 require_once __DIR__ . '/../vendor/autoload.php';
+
+scheduler(new \Onion\Framework\Loop\Scheduler\Select());
+scheduler()->addErrorHandler(fn (Throwable $ex) => var_dump($ex->getMessage()));
 
 class HttpClient
 {
@@ -34,35 +37,40 @@ class HttpClient
             'https' => 443,
         }
             : (int) $matches['port'];
-        $server = gethostbyname($matches['address']);
+            $server = \gethostbyname($matches['address']);
 
         if ($scheme === 'https') {
             $ctx = $this->getSecurityContext($this->options);
             $ctx->setPeerName($request->getUri()->getHost());
             $ctx->setSniEnable(true);
             $ctx->setSniServerName($request->getUri()->getHost());
-            $contexts[] = $ctx->getContextArray();
+            $contexts[] = $ctx;
         }
 
-        $result = Client::send(
+        $client = Client::connect(
             "tcp://{$server}:{$port}",
-            Message::toString($request),
-            contexts: array_merge(...$contexts),
+            ...$contexts,
         );
 
-        $message = '';
-        while (!$result->eof()) {
-            $message .= $result->read(8192);
-            tick();
+        write($client, Message::toString($request));
+        $message = read($client, function ($client) use (&$result) {
+            $headers = '';
+            while (!$client->eof()) {
+                $headers .= $client->read(1);
+                suspend();
 
-            if (substr($message, -4, 4) === "\r\n\r\n") {
-                break;
+                if (substr($headers, -4, 4) === "\r\n\r\n") {
+                    break;
+                }
             }
-        }
+
+            return $headers;
+        });
 
         $response = Message::parseResponse($message);
 
         if ($response->getStatusCode() >= 300 && $response->hasHeader('Location')) {
+            // handle redirects
             return $this->send(
                 $request->withUri(
                     new Uri($response->getHeaderLine('location')),
@@ -71,20 +79,37 @@ class HttpClient
         }
 
         if ($response->hasHeader('transfer-encoding') && $response->getHeaderLine('transfer-encoding') === 'chunked') {
-            $body = Utils::streamFor('');
-            $content = $response->getBody()->getContents();
+            $response = $response->withBody(read($client, function (\Onion\Framework\Loop\Interfaces\ResourceInterface $client) {
+                $body = Utils::streamFor('');
 
-            for (; !empty($content); $content = trim($content)) {
-                $pos = stripos($content, "\r\n");
-                $len = hexdec(substr($content, 0, $pos));
-                $body->write(substr($content, $pos + 2, $len));
-                $content = substr($content, $pos + 2 + $len);
+                $size = '';
+                while ($size !== '0') {
+                    $chunk = $client->read(1);
+                    if ($chunk === "\r" && $size !== '0') {
+                        $client->read(1);
+                        $length = hexdec(trim($size)) + 2;
 
-                tick();
-            }
+                        $chunk = '';
+                        $size = '';
+                        while (strlen($chunk) < $length) {
+                            $chunk .= $client->read($length - strlen($chunk));
+                            suspend();
+                        }
 
-            $response = $response->withBody($body);
+                        $body->write(trim($chunk));
+                        continue;
+                    }
+
+                    // suspend();
+                    $size .= $chunk;
+                }
+
+                $body->rewind();
+                return $body;
+            }));
         }
+
+        $client->close();
 
         return $response;
     }
@@ -119,5 +144,3 @@ coroutine(function () {
     var_dump($client->send($req)->getBody()->getSize());
     echo microtime(true) - $start;
 });
-
-scheduler()->start();
